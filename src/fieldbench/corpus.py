@@ -24,6 +24,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import yaml
+
 from .aggregate import DocResult
 from .scoring import compare_field
 
@@ -62,6 +64,29 @@ def discover_categories(root: Path) -> list[str]:
         if (entry / "documents").is_dir() and (entry / "expected").is_dir():
             cats.append(entry.name)
     return cats
+
+
+def _schema_mappings(root: Path, schema_ref: str | None, cache: dict) -> dict:
+    """{field_name: mappings} from a schema YAML (`fields.<name>.mappings`).
+
+    Enum-alias folding is what lets `10K/A` match GT `10-K/A`. Best-effort:
+    a missing/unreadable schema yields no mappings, never an error.
+    """
+    if not schema_ref:
+        return {}
+    if schema_ref in cache:
+        return cache[schema_ref]
+    out: dict = {}
+    path = root / schema_ref
+    try:
+        schema = yaml.safe_load(path.read_text())
+        for name, spec in (schema.get("fields") or {}).items():
+            if isinstance(spec, dict) and isinstance(spec.get("mappings"), dict):
+                out[name] = spec["mappings"]
+    except (OSError, yaml.YAMLError, AttributeError):
+        out = {}
+    cache[schema_ref] = out
+    return out
 
 
 def _iter_docs(root: Path, category: str):
@@ -123,14 +148,18 @@ def score_corpus(
     categories = [category] if category else discover_categories(corpus_root)
     docs: list[DocResult] = []
     missing = 0
+    schema_cache: dict = {}
 
     for cat in categories:
         for stem, expected, manifest in _iter_docs(corpus_root, cat):
             if not (results_dir / f"{stem}.json").exists():
                 missing += 1
             prediction = _load_prediction(results_dir, stem)
+            mappings = _schema_mappings(corpus_root, manifest.get("schema"), schema_cache)
             fields = [
-                compare_field(name, exp, prediction.get(name), fuzzy_threshold=fuzzy_threshold)
+                compare_field(
+                    name, exp, prediction.get(name), fuzzy_threshold=fuzzy_threshold, mappings=mappings.get(name)
+                )
                 for name, exp in expected.items()
             ]
             docs.append(DocResult(stem, cat, _source_of(manifest), fields))

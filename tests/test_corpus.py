@@ -66,6 +66,23 @@ def test_missing_prediction_counted_not_skipped(tmp_path):
     assert rep.overall.fields == 2  # still scored (as all-null), not dropped
 
 
+def test_schema_enum_mappings_fold(tmp_path):
+    cat = tmp_path / "sec_filings"
+    _write(cat / "documents" / "f1.md", "10K/A amendment")
+    _write(cat / "expected" / "f1.expected.json", {"form_type": "10-K/A"})
+    _write(cat / "manifests" / "f1.json", {"original_format": "html", "schema": "sec_filings/schemas/s.yaml"})
+    _write(
+        cat / "schemas" / "s.yaml",
+        "fields:\n  form_type:\n    type: enum\n    mappings:\n      10-K/A:\n        - 10K/A\n        - 10-KA\n",
+    )
+    results = tmp_path / "preds"
+    _write(results / "f1.json", {"form_type": "10K/A"})  # alias of the canonical GT
+    docs, missing = score_corpus(tmp_path, results)
+    assert missing == 0
+    rep = build_report(docs)
+    assert rep.overall.passed == 1  # folds via schema mappings -> match, not wrong_value
+
+
 def test_representation_resolution(tmp_path):
     _sourcefirst_corpus(tmp_path)
     md = dict((stem, p) for stem, _c, p in list_documents(tmp_path, mode="markdown"))["inv_1"]
