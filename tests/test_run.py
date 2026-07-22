@@ -87,3 +87,35 @@ def test_prompt_lists_fields():
     schema = {"fields": {"total": {"type": "number", "description": "the total"}}}
     p = build_extraction_prompt("doc text", schema)
     assert "total (number): the total" in p and "doc text" in p
+
+
+# ── Windowed (long-doc) runner ───────────────────────────────────────
+
+def test_window_text_splits_with_overlap():
+    from fieldbench.run import window_text
+    assert window_text("abcdefghij", 100) == ["abcdefghij"]  # under size
+    ws = window_text("x" * 250, 100, overlap=20)
+    assert len(ws) >= 3 and all(len(w) <= 100 for w in ws)
+
+
+def test_merge_field_values():
+    from fieldbench.run import merge_field_values
+    assert merge_field_values([None, "Acme", None]) == "Acme"      # first non-empty scalar
+    assert merge_field_values([["a"], None, ["b", "a"]]) == ["a", "b"]  # concat + dedup
+    assert merge_field_values([None, None]) is None
+
+
+def test_windowed_runner_merges_across_windows():
+    # window 1 sees field a, window 2 sees field b; merged has both.
+    schema = {"fields": {"a": {}, "b": {}}}
+    calls = {"n": 0}
+
+    def complete(prompt: str) -> str:
+        calls["n"] += 1
+        return '{"a": "A", "b": null}' if calls["n"] == 1 else '{"a": null, "b": "B"}'
+
+    from fieldbench.run import LLMRunner
+    runner = LLMRunner(complete, max_doc_chars=100, overlap=0)
+    out = runner.extract("y" * 250, schema, "s")  # 250 chars -> 3 windows
+    assert out["a"] == "A" and out["b"] == "B"
+    assert calls["n"] >= 3  # windowed, not a single call

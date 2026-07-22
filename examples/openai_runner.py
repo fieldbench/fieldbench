@@ -19,7 +19,7 @@ import os
 from fieldbench.run import LLMRunner
 
 
-def make_runner() -> LLMRunner:
+def _complete_fn():
     from openai import OpenAI  # imported lazily so core stays dep-light
 
     client = OpenAI()
@@ -34,4 +34,17 @@ def make_runner() -> LLMRunner:
         )
         return resp.choices[0].message.content or "{}"
 
-    return LLMRunner(complete)
+    return complete
+
+
+def make_runner() -> LLMRunner:
+    """Naive whole-document baseline (single call; fails on docs over the window)."""
+    return LLMRunner(_complete_fn())
+
+
+def make_windowed_runner() -> LLMRunner:
+    """Windowed baseline: long docs are split, extracted per window, and merged —
+    a fair long-document baseline. Window size via FIELDBENCH_MAX_DOC_CHARS
+    (default 300k chars ≈ 75k tokens, safely under a 128k context)."""
+    max_chars = int(os.environ.get("FIELDBENCH_MAX_DOC_CHARS", "300000"))
+    return LLMRunner(_complete_fn(), max_doc_chars=max_chars)

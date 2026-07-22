@@ -20,6 +20,7 @@ from typing import Callable, Protocol
 import yaml
 
 from .corpus import _iter_docs, discover_categories, representation_path
+from .scoring import is_empty
 
 
 class Runner(Protocol):
@@ -86,22 +87,64 @@ def parse_json_response(text: str) -> dict:
     return obj if isinstance(obj, dict) else {}
 
 
+def window_text(text: str, size: int, overlap: int = 2000) -> list[str]:
+    """Split text into overlapping windows of `size` chars (overlap avoids
+    splitting a value across a boundary)."""
+    if len(text) <= size:
+        return [text]
+    step = max(1, size - overlap)
+    return [text[i : i + size] for i in range(0, len(text), step)]
+
+
+def merge_field_values(values: list) -> object:
+    """Merge one field's values across windows: concat+dedup lists, first
+    non-empty dict, else first non-empty scalar."""
+    non_empty = [v for v in values if not is_empty(v)]
+    if not non_empty:
+        return None
+    if any(isinstance(v, list) for v in non_empty):
+        out, seen = [], set()
+        for v in non_empty:
+            for item in v if isinstance(v, list) else [v]:
+                key = json.dumps(item, sort_keys=True, default=str)
+                if key not in seen:
+                    seen.add(key)
+                    out.append(item)
+        return out
+    for v in non_empty:
+        if isinstance(v, dict):
+            return v
+    return non_empty[0]
+
+
 class LLMRunner:
     """Schema-driven runner over any `complete(prompt) -> str` callable.
 
     Keeps model SDKs out of the core: pass a completion function (see
     examples/). Output is filtered to the schema's declared fields.
+
+    `max_doc_chars` (None = off) makes it windowed: a document longer than the
+    budget is split into overlapping windows, each extracted, then merged
+    field-by-field — a fair long-document baseline that survives context limits.
     """
 
-    def __init__(self, complete: Callable[[str], str]):
+    def __init__(self, complete: Callable[[str], str], max_doc_chars: int | None = None, overlap: int = 2000):
         self._complete = complete
+        self._max_doc_chars = max_doc_chars
+        self._overlap = overlap
+
+    def _extract_once(self, doc_text: str, schema: dict, allowed: set) -> dict:
+        parsed = parse_json_response(self._complete(build_extraction_prompt(doc_text, schema)))
+        return {k: v for k, v in parsed.items() if k in allowed} if allowed else parsed
 
     def extract(self, doc_text: str, schema: dict, stem: str) -> dict:
-        prompt = build_extraction_prompt(doc_text, schema)
-        raw = self._complete(prompt)
-        parsed = parse_json_response(raw)
         allowed = set(_schema_field_names(schema))
-        return {k: v for k, v in parsed.items() if k in allowed} if allowed else parsed
+        if self._max_doc_chars and len(doc_text) > self._max_doc_chars:
+            windows = window_text(doc_text, self._max_doc_chars, self._overlap)
+            preds = [self._extract_once(w, schema, allowed) for w in windows]
+            names = allowed or {k for p in preds for k in p}
+            return {name: merge_field_values([p.get(name) for p in preds]) for name in names}
+        return self._extract_once(doc_text, schema, allowed)
 
 
 def _load_schema(root: Path, schema_ref: str | None, cache: dict) -> dict:
