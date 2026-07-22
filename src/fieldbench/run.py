@@ -193,11 +193,11 @@ def run_corpus(
                     on_progress(stem, "no-representation")
                 continue
             schema = _load_schema(corpus_root, manifest.get("schema"), schema_cache)
+            done += 1  # counts any attempted doc, so --limit works even when docs error
             try:
                 prediction = runner.extract(repr_path.read_text(), schema, stem)
                 out_path.write_text(json.dumps(prediction, ensure_ascii=False, indent=2))
                 stats.written += 1
-                done += 1
                 if on_progress:
                     on_progress(stem, "ok")
             except Exception as exc:  # noqa: BLE001 — a runner failure must not abort the whole run
