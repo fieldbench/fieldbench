@@ -44,7 +44,10 @@ def make_runner() -> LLMRunner:
 
 def make_windowed_runner() -> LLMRunner:
     """Windowed baseline: long docs are split, extracted per window, and merged —
-    a fair long-document baseline. Window size via FIELDBENCH_MAX_DOC_CHARS
-    (default 300k chars ≈ 75k tokens, safely under a 128k context)."""
-    max_chars = int(os.environ.get("FIELDBENCH_MAX_DOC_CHARS", "300000"))
+    a fair long-document baseline. Window size via FIELDBENCH_MAX_DOC_CHARS.
+
+    Default 120k chars: dense EDGAR filings run ~2 chars/token (not the ~4 of
+    prose), so 120k chars ≈ 60k tokens — safely under a 128k context even
+    with the prompt + schema. Raise it for prose-heavy corpora."""
+    max_chars = int(os.environ.get("FIELDBENCH_MAX_DOC_CHARS", "120000"))
     return LLMRunner(_complete_fn(), max_doc_chars=max_chars)
