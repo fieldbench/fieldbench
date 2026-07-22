@@ -40,6 +40,9 @@ def main(argv: list[str] | None = None) -> int:
     score.add_argument("--corpus", required=True, type=Path, help="Path to the corpus root")
     score.add_argument("--results", required=True, type=Path, help="Directory of <stem>.json predictions")
     score.add_argument("--category", default=None, help="Score a single category only")
+    score.add_argument(
+        "--mode", default="unspecified", help="Label for which representation the predictions came from (markdown/source/...)"
+    )
     score.add_argument("--fuzzy-threshold", type=float, default=0.0, help="Off (0.0) for the official metric")
     score.add_argument("--json", action="store_true", help="Emit the full report as JSON")
     score.add_argument(
@@ -60,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         if not docs:
             print("error: no scorable documents found", file=sys.stderr)
             return 2
-        report = build_report(docs).to_dict()
+        report = build_report(docs, mode=args.mode).to_dict()
         if args.json:
             print(json.dumps(report, indent=2))
         else:

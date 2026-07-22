@@ -50,6 +50,7 @@ class Stratum:
 @dataclass
 class Report:
     scorer_version: str = SCORER_VERSION
+    mode: str = "unspecified"  # which representation the predictions came from
     overall: Stratum = field(default_factory=Stratum)
     by_source: dict[str, Stratum] = field(default_factory=dict)
     by_category: dict[str, Stratum] = field(default_factory=dict)
@@ -60,6 +61,7 @@ class Report:
         total = sum(self.four_way.values()) or 1
         return {
             "scorer_version": self.scorer_version,
+            "mode": self.mode,
             "overall": self.overall.to_dict(),
             "by_source": {k: v.to_dict() for k, v in sorted(self.by_source.items())},
             "by_category": {k: v.to_dict() for k, v in sorted(self.by_category.items())},
@@ -78,8 +80,8 @@ def _add(strata: dict[str, Stratum], key: str, r: FieldResult) -> None:
     s.weighted += r.weighted_score
 
 
-def build_report(docs: list[DocResult]) -> Report:
-    rep = Report()
+def build_report(docs: list[DocResult], mode: str = "unspecified") -> Report:
+    rep = Report(mode=mode)
     empty_expected = 0
     total = 0
     doc_counts_source: dict[str, int] = defaultdict(int)
