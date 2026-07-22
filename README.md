@@ -12,9 +12,22 @@ Every document-extraction vendor claims 95%+ accuracy; almost none publish how t
 pip install fieldbench   # once published; for now: pip install -e .
 ```
 
+## Run a baseline
+
+`fieldbench run` drives any extractor over the corpus and writes the prediction files for you. It's extractor-agnostic — the whole integration surface is a `complete(prompt) -> str` callable (see `examples/openai_runner.py`):
+
+```bash
+pip install "fieldbench[openai]"
+OPENAI_API_KEY=... FIELDBENCH_MODEL=gpt-4o-mini \
+  fieldbench run --corpus ./corpus --out ./preds/gpt-4o-mini \
+    --runner examples.openai_runner:make_runner
+```
+
+Runs are **resumable** (existing predictions are skipped) and **never invent results** — a runner error writes nothing, so that document is scored as a real miss, not dropped.
+
 ## Score your system
 
-Emit one prediction file per document — a flat `{field: value}` JSON named `<doc_id>.json` — then:
+Score prediction files — a flat `{field: value}` JSON named `<doc_id>.json` per document (produced by `fieldbench run` or by your own pipeline):
 
 ```bash
 fieldbench score --corpus /path/to/corpus --results /path/to/predictions/

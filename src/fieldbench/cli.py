@@ -3,12 +3,26 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import sys
 from pathlib import Path
 
 from .aggregate import build_report
 from .corpus import score_corpus
+from .run import run_corpus
+
+
+def _load_runner(ref: str):
+    """Load a runner from `module:attr`. attr is a Runner instance or a
+    zero-arg factory that returns one."""
+    if ":" not in ref:
+        raise ValueError(f"--runner must be 'module:attr', got {ref!r}")
+    mod_name, attr = ref.split(":", 1)
+    obj = getattr(importlib.import_module(mod_name), attr)
+    if hasattr(obj, "extract"):
+        return obj
+    return obj()  # factory
 
 
 def _print_table(report_dict: dict) -> None:
@@ -51,7 +65,44 @@ def main(argv: list[str] | None = None) -> int:
         help="Do not fail when prediction files are missing (they are scored as all-null)",
     )
 
+    run = sub.add_parser("run", help="Run an extractor over the corpus, writing per-doc predictions")
+    run.add_argument("--corpus", required=True, type=Path, help="Path to the corpus root")
+    run.add_argument("--out", required=True, type=Path, help="Output dir for <stem>.json predictions")
+    run.add_argument("--runner", required=True, help="Runner as 'module:attr' (instance or zero-arg factory)")
+    run.add_argument("--mode", default="markdown", help="Which representation to feed (markdown/text/source)")
+    run.add_argument("--category", default=None, help="Run a single category only")
+    run.add_argument("--limit", type=int, default=None, help="Stop after N docs (smoke testing)")
+    run.add_argument("--no-resume", action="store_true", help="Re-run docs even if a prediction file exists")
+
     args = parser.parse_args(argv)
+
+    if args.command == "run":
+        if not args.corpus.is_dir():
+            print(f"error: corpus not found: {args.corpus}", file=sys.stderr)
+            return 2
+        try:
+            runner = _load_runner(args.runner)
+        except (ValueError, ImportError, AttributeError) as exc:
+            print(f"error: could not load runner {args.runner!r}: {exc}", file=sys.stderr)
+            return 2
+        stats = run_corpus(
+            args.corpus,
+            runner,
+            args.out,
+            mode=args.mode,
+            category=args.category,
+            resume=not args.no_resume,
+            limit=args.limit,
+            on_progress=lambda stem, status: print(f"  {stem}: {status}", file=sys.stderr),
+        )
+        print(
+            f"\nwrote {stats.written}, skipped {stats.skipped} (resume), "
+            f"errors {stats.errors}, no-representation {stats.no_representation}"
+        )
+        if stats.error_stems:
+            print(f"error docs: {', '.join(stats.error_stems[:10])}"
+                  f"{'…' if len(stats.error_stems) > 10 else ''}", file=sys.stderr)
+        return 1 if (stats.errors or stats.no_representation) else 0
 
     if args.command == "score":
         if not args.corpus.is_dir():
