@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from typing import Any, List, Optional
 
-from pydantic import create_model
+from pydantic import Field, create_model
 
 from fieldbench.run import _schema_field_names, merge_field_values, window_text
 
@@ -33,7 +33,10 @@ def _pydantic_model(schema: dict):
             typ = Optional[float]
         else:
             typ = Optional[str]
-        fields[name] = (typ, None)
+        # Carry the schema's field description into the function-call schema so the
+        # model gets the same guidance the prompt baseline does (fair comparison).
+        desc = str(spec.get("description", "")) or None
+        fields[name] = (typ, Field(default=None, description=desc))
     return create_model("Extraction", **fields) if fields else None
 
 
