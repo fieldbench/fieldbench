@@ -20,7 +20,7 @@ from typing import Any, Literal
 
 Bucket = Literal["correct_absence", "hallucination", "miss", "match", "wrong_value"]
 
-SCORER_VERSION = "0.1.0"
+SCORER_VERSION = "0.2.0"
 
 
 # ── Normalization helpers ─────────────────────────────────────────────
@@ -38,6 +38,26 @@ def _levenshtein(a: str, b: str) -> int:
             curr.append(min(prev[j + 1] + 1, curr[j] + 1, prev[j] + (ca != cb)))
         prev = curr
     return prev[-1]
+
+
+# Common organizational designators. Folding trailing occurrences lets
+# "Microsoft Corp" match "Microsoft Corporation" and "3M Co" match "3M Company"
+# under the exact metric — a document prints the full legal form while an
+# authoritative index (e.g. EDGAR) stores an abbreviation.
+_ORG_SUFFIXES = {
+    "corp", "corporation", "co", "company", "inc", "incorporated", "ltd",
+    "limited", "llc", "llp", "lp", "plc", "pllc", "pc", "sa", "ag", "gmbh",
+    "nv", "bv", "ab", "oy", "spa",
+}
+
+
+def _fold_org_suffix(normalized: str) -> str:
+    """Strip trailing organizational designators from a punctuation-normalized
+    string (already lowercased, single-spaced). Returns the folded core."""
+    toks = normalized.split()
+    while toks and toks[-1] in _ORG_SUFFIXES:
+        toks.pop()
+    return " ".join(toks)
 
 
 def string_similarity(a: str, b: str) -> float:
@@ -298,6 +318,11 @@ def compare_field(
         ea = re.sub(r"[^a-z0-9]+", " ", a.lower()).strip()
         if ep and ep == ea:
             return matched()  # punctuation-only difference
+        ef, af = _fold_org_suffix(ep), _fold_org_suffix(ea)
+        if ef and ef == af:
+            # equal once trailing org designators (Corp/Corporation/Co/…) are folded;
+            # ef non-empty guards against two bare designators folding to nothing
+            return matched("organizational-suffix-equivalent")
         if fuzzy_threshold > 0 and string_similarity(e, a) >= fuzzy_threshold:
             return matched(f"fuzzy match ({string_similarity(e, a):.0%})")
         return wrong(f"expected {expected!r}, got {actual!r}")

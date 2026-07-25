@@ -52,6 +52,19 @@ def test_fuzzy_only_when_enabled():
     assert bucket("TED HENG", "TEO HENG", fuzzy_threshold=0.8) == ("match", True)
 
 
+def test_org_suffix_folding():
+    # a doc prints the full legal form; an authoritative index abbreviates it
+    assert bucket("MICROSOFT CORP", "MICROSOFT CORPORATION") == ("match", True)
+    assert bucket("3M CO", "3M COMPANY") == ("match", True)
+    assert bucket("Texas Instruments Inc", "Texas Instruments Incorporated") == ("match", True)
+    assert bucket("Acme", "Acme LLC") == ("match", True)  # bare name vs suffixed
+    # must NOT over-match: different cores, cross-suffix, or bare-designator collisions
+    assert bucket("Alpha Corp", "Beta Corp") == ("wrong_value", False)
+    assert bucket("Apple Inc", "Microsoft Corporation") == ("wrong_value", False)
+    assert bucket("Corp", "Inc") == ("wrong_value", False)
+    assert bucket("United States", "United States of America") == ("wrong_value", False)
+
+
 # ── Numbers ──────────────────────────────────────────────────────────
 
 def test_numeric_tolerance_and_formatting():
