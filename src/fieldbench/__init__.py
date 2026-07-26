@@ -5,7 +5,7 @@ from .corpus import list_documents, score_corpus
 from .run import LLMRunner, Runner, run_corpus
 from .scoring import SCORER_VERSION, FieldResult, compare_field
 
-__version__ = "0.1.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "compare_field",

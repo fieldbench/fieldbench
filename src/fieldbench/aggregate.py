@@ -28,6 +28,7 @@ class Stratum:
     fields: int = 0
     passed: int = 0
     weighted: float = 0.0
+    four_way: Counter = field(default_factory=Counter)
 
     @property
     def accuracy(self) -> float:
@@ -38,12 +39,17 @@ class Stratum:
         return self.weighted / self.fields if self.fields else 0.0
 
     def to_dict(self) -> dict:
+        n = self.fields or 1
         return {
             "docs": self.docs,
             "fields": self.fields,
             "passed": self.passed,
             "accuracy": round(self.accuracy, 4),
             "partial_credit": round(self.partial, 4),
+            "four_way": {
+                bucket: {"count": c, "rate": round(c / n, 4)}
+                for bucket, c in sorted(self.four_way.items())
+            },
         }
 
 
@@ -78,6 +84,7 @@ def _add(strata: dict[str, Stratum], key: str, r: FieldResult) -> None:
     s.fields += 1
     s.passed += int(r.passed)
     s.weighted += r.weighted_score
+    s.four_way[r.bucket] += 1
 
 
 def build_report(docs: list[DocResult], mode: str = "unspecified") -> Report:

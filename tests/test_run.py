@@ -46,6 +46,16 @@ def test_run_then_score_roundtrip(tmp_path):
     assert rep.four_way["match"] == 2
     assert rep.four_way["hallucination"] == 1
 
+    # per-category and per-source strata carry the same four-way breakdown, and it
+    # reconciles with the top-level counts (0.2.1 addition; scoring unchanged).
+    d = rep.to_dict()
+    cat = next(iter(d["by_category"].values()))
+    assert cat["four_way"]["match"]["count"] == 2
+    assert cat["four_way"]["hallucination"]["count"] == 1
+    for bucket in ("match", "hallucination"):
+        per_cat = sum(v["four_way"].get(bucket, {}).get("count", 0) for v in d["by_category"].values())
+        assert per_cat == d["four_way"][bucket]["count"]
+
 
 def test_run_resume_skips_existing(tmp_path):
     _corpus(tmp_path)
