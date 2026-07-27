@@ -4,7 +4,7 @@ A cross-domain, field-level benchmark for **schema-driven document extraction** 
 
 Every document-extraction vendor claims 95%+ accuracy; almost none publish how they measure it. FieldBench makes extraction accuracy **falsifiable and comparable**: a shared corpus, a shared type-aware scorer, and a leaderboard anyone can submit to.
 
-> **Status: v0.2.1, published.** `pip install fieldbench` installs the scorer and the run harness. The corpus (1,442 documents across 10 categories) lives at [`fieldbench/corpus`](https://github.com/fieldbench/corpus), mirrored on [HuggingFace](https://huggingface.co/datasets/fieldbench/corpus) and archived on [Zenodo](https://doi.org/10.5281/zenodo.21532677). A public leaderboard is forthcoming.
+> **Status: v0.2.2, published.** `pip install fieldbench` installs the scorer and the run harness. The corpus (1,442 documents across 10 categories) lives at [`fieldbench/corpus`](https://github.com/fieldbench/corpus), mirrored on [HuggingFace](https://huggingface.co/datasets/fieldbench/corpus) and archived on [Zenodo](https://doi.org/10.5281/zenodo.21532677). A public leaderboard is forthcoming.
 
 ## Install
 
