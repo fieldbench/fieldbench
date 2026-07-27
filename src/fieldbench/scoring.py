@@ -107,9 +107,7 @@ def is_empty(value: Any) -> bool:
         return True
     if isinstance(value, str) and value.strip() == "":
         return True
-    if isinstance(value, (list, dict)) and len(value) == 0:
-        return True
-    return False
+    return bool(isinstance(value, (list, dict)) and len(value) == 0)
 
 
 def _normalize_value(value: Any) -> Any:

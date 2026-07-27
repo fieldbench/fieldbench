@@ -77,7 +77,7 @@ def test_runner_error_writes_nothing(tmp_path):
     assert stats.errors == 1 and stats.written == 0
     assert not (out / "d1.json").exists()  # no invented result
     # scored as all-null (a real miss), not dropped
-    docs, missing = score_corpus(tmp_path, out)
+    _docs, missing = score_corpus(tmp_path, out)
     assert missing == 1
 
 

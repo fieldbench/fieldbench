@@ -8,16 +8,16 @@ from .scoring import SCORER_VERSION, FieldResult, compare_field
 __version__ = "0.2.1"
 
 __all__ = [
-    "compare_field",
-    "FieldResult",
     "SCORER_VERSION",
-    "score_corpus",
-    "list_documents",
-    "build_report",
     "DocResult",
-    "Report",
-    "run_corpus",
-    "Runner",
+    "FieldResult",
     "LLMRunner",
+    "Report",
+    "Runner",
     "__version__",
+    "build_report",
+    "compare_field",
+    "list_documents",
+    "run_corpus",
+    "score_corpus",
 ]
