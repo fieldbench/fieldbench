@@ -4,12 +4,12 @@ A cross-domain, field-level benchmark for **schema-driven document extraction** 
 
 Every document-extraction vendor claims 95%+ accuracy; almost none publish how they measure it. FieldBench makes extraction accuracy **falsifiable and comparable**: a shared corpus, a shared type-aware scorer, and a leaderboard anyone can submit to.
 
-> **Status: alpha (v0.1).** The scorer is the first piece to land. The corpus lives at [`fieldbench/corpus`](https://github.com/fieldbench/corpus). Leaderboard and HuggingFace packaging are in progress.
+> **Status: v0.2.1, published.** `pip install fieldbench` installs the scorer and the run harness. The corpus (1,442 documents across 10 categories) lives at [`fieldbench/corpus`](https://github.com/fieldbench/corpus), mirrored on [HuggingFace](https://huggingface.co/datasets/fieldbench/corpus) and archived on [Zenodo](https://doi.org/10.5281/zenodo.21532677). A public leaderboard is forthcoming.
 
 ## Install
 
 ```bash
-pip install fieldbench   # once published; for now: pip install -e .
+pip install fieldbench
 ```
 
 ## Run a baseline
@@ -33,11 +33,11 @@ Score prediction files — a flat `{field: value}` JSON named `<doc_id>.json` pe
 fieldbench score --corpus /path/to/corpus --results /path/to/predictions/
 ```
 
-You get overall accuracy, the **all-null floor** (what an empty extractor scores for free), a **real-vs-synthetic** split, a **four-way outcome breakdown**, and a per-category table. `--json` emits the full report; `--category <name>` scopes to one category.
+You get overall accuracy, the **all-null floor** (what an empty extractor scores for free), a **real-vs-synthetic** split, a **five-outcome breakdown**, and a per-category table. `--json` emits the full report; `--category <name>` scopes to one category.
 
 ## What makes the scoring type-aware
 
-`compare_field` runs **four-way null semantics** first — the thing plain accuracy hides:
+`compare_field` is **null-aware** — it resolves the null/value boundary first, into five distinct outcomes plain accuracy hides:
 
 | Outcome | Meaning |
 |---|---|
@@ -55,10 +55,11 @@ For present-vs-present it is tolerant where it should be and strict where it mus
   title  = {FieldBench: A Cross-Domain Benchmark for Schema-Driven Document Extraction},
   author = {Thomas, Frank},
   year   = {2026},
-  note   = {https://github.com/fieldbench}
+  doi    = {10.5281/zenodo.21532677},
+  url    = {https://github.com/fieldbench}
 }
 ```
-<!-- Replaced with the Zenodo DOI on release, and the paper citation once published. -->
+<!-- The paper citation will be added here once the accompanying paper is published. -->
 
 ## Development
 
@@ -68,7 +69,7 @@ pytest        # golden scorer tests
 ruff check .
 ```
 
-The golden tests in `tests/` are the anti-drift contract: they pin the canonical scoring semantics that any conforming implementation (including Koji's) must match.
+The golden tests in `tests/` are the anti-drift contract: they pin the canonical scoring semantics that any conforming implementation must match.
 
 ## License
 
