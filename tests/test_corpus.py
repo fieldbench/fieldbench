@@ -85,7 +85,7 @@ def test_schema_enum_mappings_fold(tmp_path):
 
 def test_representation_resolution(tmp_path):
     _sourcefirst_corpus(tmp_path)
-    md = dict((stem, p) for stem, _c, p in list_documents(tmp_path, mode="markdown"))["inv_1"]
+    md = {stem: p for stem, _c, p in list_documents(tmp_path, mode="markdown")}["inv_1"]
     assert md is not None and md.name == "markdown.md"
-    src = dict((stem, p) for stem, _c, p in list_documents(tmp_path, mode="source"))["inv_1"]
+    src = {stem: p for stem, _c, p in list_documents(tmp_path, mode="source")}["inv_1"]
     assert src is not None and src.name == "source.pdf"

@@ -14,7 +14,7 @@ Whole-document, windowed for long docs. Behind the `langchain` extra.
 from __future__ import annotations
 
 import os
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, create_model
 
@@ -32,13 +32,13 @@ def _pydantic_model(schema: dict):
         spec = spec if isinstance(spec, dict) else {}
         t = str(spec.get("type", "")).lower()
         if t in ("array", "list"):
-            typ = Optional[List[Any]]
+            typ = list[Any] | None
         elif t in ("object", "dict"):
-            typ = Optional[dict]
+            typ = dict | None
         elif t in ("number", "integer", "float", "currency", "int"):
-            typ = Optional[float]
+            typ = float | None
         else:
-            typ = Optional[str]
+            typ = str | None
         desc = str(spec.get("description", "")) or None
         fields[name] = (typ, Field(default=None, description=desc))
     return create_model("Extraction", **fields) if fields else None

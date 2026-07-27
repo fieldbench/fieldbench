@@ -13,7 +13,7 @@ function-calling relabeled. Whole-document (windowed for long docs), no RAG.
 from __future__ import annotations
 
 import os
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import Field, create_model
 
@@ -26,13 +26,13 @@ def _pydantic_model(schema: dict):
         spec = spec if isinstance(spec, dict) else {}
         t = str(spec.get("type", "")).lower()
         if t in ("array", "list"):
-            typ = Optional[List[Any]]
+            typ = list[Any] | None
         elif t in ("object", "dict"):
-            typ = Optional[dict]
+            typ = dict | None
         elif t in ("number", "integer", "float", "currency", "int"):
-            typ = Optional[float]
+            typ = float | None
         else:
-            typ = Optional[str]
+            typ = str | None
         # Carry the schema's field description into the function-call schema so the
         # model gets the same guidance the prompt baseline does (fair comparison).
         desc = str(spec.get("description", "")) or None
