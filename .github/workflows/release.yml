@@ -1,0 +1,32 @@
+name: release
+
+# Publishes to PyPI via Trusted Publishing (OIDC) when a GitHub Release is published.
+# No API token is stored anywhere: PyPI trusts this workflow by repo + filename + environment.
+#
+# IMPORTANT: the `environment:` name and this file's name (release.yml) must EXACTLY match the
+# trusted-publisher configured on PyPI (fieldbench project -> Publishing). If you left the
+# environment field blank on PyPI, remove the `environment: pypi` line below.
+#
+# To cut a release: bump `version` in pyproject.toml (PyPI rejects re-uploading 0.2.1), then
+# create a GitHub Release with a tag (e.g. v0.2.2). This workflow builds and publishes it.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write        # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
