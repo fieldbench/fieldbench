@@ -221,6 +221,28 @@ def resolve_mapping(value: str, mappings: dict) -> str:
     return value
 
 
+def fold_enum(value: str, options: list) -> str:
+    """Canonicalize an enum value to the option contained within it.
+
+    Enum fields carry a fixed option set; a prediction is correct if it names
+    the right option, regardless of surrounding wording. E.g. for a
+    governing-law enum with option "New York", both "State of New York" and
+    "the laws of the State of New York" fold to "New York". Word-boundary
+    containment, longest option wins (so "North Dakota" beats "Dakota").
+    Returns the value unchanged if no option matches.
+    """
+    if not options:
+        return value
+    v = re.sub(r"\s+", " ", str(value).strip().lower())
+    best = None
+    for opt in options:
+        o = str(opt).strip().lower()
+        if o and re.search(r"\b" + re.escape(o) + r"\b", v):
+            if best is None or len(o) > len(best[1]):
+                best = (opt, o)
+    return best[0] if best else value
+
+
 # ── Result ────────────────────────────────────────────────────────────
 
 
@@ -250,6 +272,7 @@ def compare_field(
     actual: Any,
     fuzzy_threshold: float = 0.0,
     mappings: dict | None = None,
+    enum_options: list | None = None,
 ) -> FieldResult:
     """Compare one expected value against one extracted value.
 
@@ -308,6 +331,8 @@ def compare_field(
     # Scalar / string
     if isinstance(expected, str) and isinstance(actual, str):
         e, a = expected, actual
+        if enum_options:
+            e, a = fold_enum(e, enum_options), fold_enum(a, enum_options)
         if mappings:
             e, a = resolve_mapping(e, mappings), resolve_mapping(a, mappings)
         if e.strip().lower() == a.strip().lower():

@@ -73,18 +73,22 @@ def _schema_mappings(root: Path, schema_ref: str | None, cache: dict) -> dict:
     a missing/unreadable schema yields no mappings, never an error.
     """
     if not schema_ref:
-        return {}
+        return {"__mappings__": {}, "__enums__": {}}
     if schema_ref in cache:
         return cache[schema_ref]
-    out: dict = {}
+    out: dict = {"__mappings__": {}, "__enums__": {}}
     path = root / schema_ref
     try:
         schema = yaml.safe_load(path.read_text())
         for name, spec in (schema.get("fields") or {}).items():
-            if isinstance(spec, dict) and isinstance(spec.get("mappings"), dict):
-                out[name] = spec["mappings"]
+            if not isinstance(spec, dict):
+                continue
+            if isinstance(spec.get("mappings"), dict):
+                out["__mappings__"][name] = spec["mappings"]
+            if spec.get("type") == "enum" and isinstance(spec.get("options"), list):
+                out["__enums__"][name] = spec["options"]
     except (OSError, yaml.YAMLError, AttributeError):
-        out = {}
+        out = {"__mappings__": {}, "__enums__": {}}
     cache[schema_ref] = out
     return out
 
@@ -155,10 +159,16 @@ def score_corpus(
             if not (results_dir / f"{stem}.json").exists():
                 missing += 1
             prediction = _load_prediction(results_dir, stem)
-            mappings = _schema_mappings(corpus_root, manifest.get("schema"), schema_cache)
+            schema_meta = _schema_mappings(corpus_root, manifest.get("schema"), schema_cache)
+            field_maps, field_enums = schema_meta["__mappings__"], schema_meta["__enums__"]
             fields = [
                 compare_field(
-                    name, exp, prediction.get(name), fuzzy_threshold=fuzzy_threshold, mappings=mappings.get(name)
+                    name,
+                    exp,
+                    prediction.get(name),
+                    fuzzy_threshold=fuzzy_threshold,
+                    mappings=field_maps.get(name),
+                    enum_options=field_enums.get(name),
                 )
                 for name, exp in expected.items()
             ]
