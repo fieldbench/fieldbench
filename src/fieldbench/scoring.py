@@ -237,9 +237,10 @@ def fold_enum(value: str, options: list) -> str:
     best = None
     for opt in options:
         o = str(opt).strip().lower()
-        if o and re.search(r"\b" + re.escape(o) + r"\b", v):
-            if best is None or len(o) > len(best[1]):
-                best = (opt, o)
+        if o and re.search(r"\b" + re.escape(o) + r"\b", v) and (
+            best is None or len(o) > len(best[1])
+        ):
+            best = (opt, o)
     return best[0] if best else value
 
 
