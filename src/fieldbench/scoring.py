@@ -20,7 +20,7 @@ from typing import Any, Literal
 
 Bucket = Literal["correct_absence", "hallucination", "miss", "match", "wrong_value"]
 
-SCORER_VERSION = "0.2.1"
+SCORER_VERSION = "0.2.2"
 
 
 # ── Normalization helpers ─────────────────────────────────────────────
