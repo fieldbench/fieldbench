@@ -66,31 +66,42 @@ def discover_categories(root: Path) -> list[str]:
     return cats
 
 
+def _load_schema(root: Path, schema_ref: str | None, cache: dict) -> dict:
+    """Parsed schema YAML (`{fields: {...}}`), cached. {} on missing/unreadable."""
+    if not schema_ref:
+        return {}
+    if schema_ref in cache:
+        return cache[schema_ref]
+    try:
+        out = yaml.safe_load((root / schema_ref).read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        out = {}
+    cache[schema_ref] = out
+    return out
+
+
 def _schema_mappings(root: Path, schema_ref: str | None, cache: dict) -> dict:
     """{field_name: mappings} from a schema YAML (`fields.<name>.mappings`).
 
     Enum-alias folding is what lets `10K/A` match GT `10-K/A`. Best-effort:
     a missing/unreadable schema yields no mappings, never an error.
     """
-    if not schema_ref:
-        return {"__mappings__": {}, "__enums__": {}}
-    if schema_ref in cache:
-        return cache[schema_ref]
-    out: dict = {"__mappings__": {}, "__enums__": {}}
-    path = root / schema_ref
-    try:
-        schema = yaml.safe_load(path.read_text())
-        for name, spec in (schema.get("fields") or {}).items():
-            if not isinstance(spec, dict):
-                continue
-            if isinstance(spec.get("mappings"), dict):
-                out["__mappings__"][name] = spec["mappings"]
-            if spec.get("type") == "enum" and isinstance(spec.get("options"), list):
-                out["__enums__"][name] = spec["options"]
-    except (OSError, yaml.YAMLError, AttributeError):
-        out = {"__mappings__": {}, "__enums__": {}}
-    cache[schema_ref] = out
-    return out
+    schema = _load_schema(root, schema_ref, cache)
+    return {
+        name: spec["mappings"]
+        for name, spec in (schema.get("fields") or {}).items()
+        if isinstance(spec, dict) and isinstance(spec.get("mappings"), dict)
+    }
+
+
+def _schema_enums(root: Path, schema_ref: str | None, cache: dict) -> dict:
+    """{field_name: options} for enum-typed fields, for enum canonicalization."""
+    schema = _load_schema(root, schema_ref, cache)
+    return {
+        name: spec["options"]
+        for name, spec in (schema.get("fields") or {}).items()
+        if isinstance(spec, dict) and spec.get("type") == "enum" and isinstance(spec.get("options"), list)
+    }
 
 
 def _iter_docs(root: Path, category: str):
@@ -159,8 +170,8 @@ def score_corpus(
             if not (results_dir / f"{stem}.json").exists():
                 missing += 1
             prediction = _load_prediction(results_dir, stem)
-            schema_meta = _schema_mappings(corpus_root, manifest.get("schema"), schema_cache)
-            field_maps, field_enums = schema_meta["__mappings__"], schema_meta["__enums__"]
+            field_maps = _schema_mappings(corpus_root, manifest.get("schema"), schema_cache)
+            field_enums = _schema_enums(corpus_root, manifest.get("schema"), schema_cache)
             fields = [
                 compare_field(
                     name,
